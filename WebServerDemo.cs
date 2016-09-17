@@ -1,9 +1,11 @@
-﻿using System;
-using System.Net;
-using System.Net.Sockets;
+﻿//Kevin Toombs - 11412225
+
+using System;
+
 
 namespace CS422
 {
+    //Simpe demo app that just constantly calls Start;
     class WebServerDemo
     {
         static void Main(string[] args)
@@ -18,12 +20,11 @@ namespace CS422
 
             while (true)
             {
-                WebServer.Start(8345, s);
-            }
+                if (WebServer.Start(8345, s))
+                    Console.WriteLine("               Demo: Good request");
+                else
+                    Console.WriteLine("               Demo: Bad request");
 
-            if (!WebServer.Start(8345, s))
-            {
-                Console.WriteLine("wow");
             }
 
             return;

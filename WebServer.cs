@@ -1,4 +1,6 @@
-﻿using System;
+﻿//Kevin Toombs - 11412225
+
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
@@ -16,6 +18,7 @@ namespace CS422
         static IPAddress _localAddr = IPAddress.Parse("127.0.0.1");
         static int _EmptyLineCount = 0;
         static ServerState _State = ServerState.dead;
+        static string _url;
         
         public static bool Start(int port, string responseTemplate)
         {
@@ -23,12 +26,12 @@ namespace CS422
             byte[] readBytes = new byte[1024];
             NetworkStream stream;
             string[] stringSeparators = new string[] { "\r\n" };
-            string data = "",
-                   url = "";
+            string data = "";
 
             //Make listener
             try
             {
+                //TCP boilerplate.
                 _tcpl = new TcpListener(_localAddr, port);
                 _tcpl.Start();
                 _State = ServerState.listening;
@@ -39,38 +42,41 @@ namespace CS422
 
                 stream = _tcpc.GetStream();
 
+                //This dowhile loop reads in bytes, the processes each individual line.
+                //if an incomplete line ends the byte array (no \r\n\)
                 do
                 {
                     bytesRead = stream.Read(readBytes, 0, readBytes.Length);
                     data += System.Text.Encoding.ASCII.GetString(readBytes, 0, bytesRead);
                     //Console.WriteLine(String.Format("Received: {0}", data));
-                    while (data.Contains("\r\n"))
-                    {
-                        //Console.WriteLine("bytesRead: " + bytesRead.ToString());
+ 
+                    //Console.WriteLine("bytesRead: " + bytesRead.ToString());
 
-                        String[] lines = data.Split(stringSeparators, StringSplitOptions.None);
-                        foreach (string s in lines)
+                    //lines are divided by /r/n
+                    String[] lines = data.Split(stringSeparators, StringSplitOptions.None);
+                    foreach (string s in lines)
+                    {
+                    if (String.IsNullOrEmpty(s)) {
+                        if (!HandleEmptyString(s))
                         {
-                        if (String.IsNullOrEmpty(s)) {
-                            if (!HandleEmptyString(s))
-                            {
-                                return Stop();
-                            }
+                            return Stop();
                         }
-                        else
-                        {
-                            if (!HandleString(s))
-                            {
-                                return Stop();
-                            }
-                        }
-                        }
-                        data = lines[lines.Length - 1];
                     }
+                    else
+                    {
+                        if (!HandleString(s))
+                        {
+                            return Stop();
+                        }
+                    }
+                    }
+                    data = lines[lines.Length - 1];
+
                 }
                 while (stream.DataAvailable);
 
-                string response = string.Format(responseTemplate, "11412225", DateTime.Now, url);
+                //Ending server boilerplate, disposing of stream.
+                string response = string.Format(responseTemplate, "11412225", DateTime.Now, _url);
                 byte[] msg = System.Text.Encoding.ASCII.GetBytes(response);
                 stream.Write(msg, 0, msg.Length);
                 stream.Dispose();
@@ -89,8 +95,11 @@ namespace CS422
 
         }
 
+        //Handles all non empty strings read from the request
+        //and passes the results back to the start function to saying if that line is valid
         private static bool HandleString(string s)
         {
+            //In the initial state of the server the only acceptable line is "GET (URL) HTTP/1.1"
             if (_State == ServerState.open)
             {
                 string expected = @"^GET \S* HTTP/1.1$";
@@ -98,6 +107,7 @@ namespace CS422
                 if (expr.IsMatch(s))
                 {
                     //Console.WriteLine("Method matched, moving to headers");
+                    _url = s.Split(' ')[1];
                     _State = ServerState.headers;
                     return true;
                 }
@@ -107,6 +117,9 @@ namespace CS422
                     return false;
                 }
             }
+            //After the method line this block checks for the Host header and any other headers, tossing all information into the ether.
+            //after one single header is found, we change the state to "midHeaders" so that we can account for
+            //headers that go beyond one line.
             else if (_State == ServerState.headers || _State == ServerState.midHeaders)
             {
                 string expected = @"^\S+:\s*.*$";
@@ -153,6 +166,8 @@ namespace CS422
             return true;
         }
 
+        //Empty lines are permitted in two places, after the headers (there must be at least one) and then in the body
+        //This checks for those, returning false if an empty line is found elsewhere.
         private static bool HandleEmptyString(string s)
         {
             _EmptyLineCount++;
@@ -171,6 +186,9 @@ namespace CS422
             }
         }
 
+        //Function to "stop" the server
+        //Sets static values back to 0, closes to TCP client, and stops the TCP listener.
+        //Then uses the current state to tell the demo program if the request was valid or not.
         private static bool Stop()
         {
             Console.WriteLine("F: Stopping on state " + _State.ToString());
