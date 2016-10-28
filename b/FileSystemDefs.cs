@@ -68,13 +68,22 @@ namespace CS422
 
     public class StdFSDir : Dir422
     {
-        internal StdFSDir(string path, Dir422 parent)
+		private Dir422 _parent;
+		private string _myPath;
+
+		internal StdFSDir(string path, Dir422 parent)
         {
-            MyPath = path;
-            Parent = parent;
+            _myPath = path;
+            _parent = parent;
         }
 
-        private string MyPath { get; set; }
+		private string MyPath 
+		{ 
+			get 
+			{ 
+				return _myPath;
+			} 
+		}
 
         public override string Name
         {
@@ -84,9 +93,12 @@ namespace CS422
             }
         }
 
-        public override Dir422 Parent
-        {
-            get;
+        public override Dir422 Parent 
+		{
+			get
+			{
+				return _parent;
+			}
         }
 
         private bool ContainsPathChars(string dirName)
@@ -138,7 +150,6 @@ namespace CS422
             string path = Path.Combine(MyPath, dirName);
             Directory.CreateDirectory(path);
             return new StdFSDir(path, this);
-            throw new NotImplementedException();
         }
 
 
@@ -245,6 +256,7 @@ namespace CS422
 
     public class MemoryFileSystem : FileSys422
     {
+
         private MemFSDir Root { get; set; }
 
         public MemoryFileSystem()
@@ -263,11 +275,13 @@ namespace CS422
 
         public List<Dir422> Dirs { get; private set; }
         public List<File422> Files { get; private set; }
+		private Dir422 _parent;
+		private string _name;
 
         public MemFSDir(string name, MemFSDir parent)
         {
-            Name = name;
-            Parent = parent;
+            _name = name;
+            _parent = parent;
 
             Files = new List<File422>();
             Dirs = new List<Dir422>();
@@ -275,12 +289,18 @@ namespace CS422
 
         public override string Name
         {
-            get;
+			get 
+			{
+				return _name;
+			}
         }
 
         public override Dir422 Parent
         {
-            get;
+			get
+			{
+				return _parent;
+			}
         }
 
         private bool ContainsPathChars(string dirName)
@@ -388,30 +408,38 @@ namespace CS422
     {
         private Object thisLock = new Object();
         private Stream MyStream { get; set; }
+		private Dir422 _parent;
+		private string _name;
 
         public MemFSFile(string fileName, MemFSDir parent)
         {
-            Parent = parent;
-            Name = fileName;
+            _parent = parent;
+            _name = fileName;
             var memStream = new MemoryStream();
             MyStream = Stream.Synchronized(memStream);
         }
 
         public override string Name
         {
-            get;
+			get
+			{
+				return _name;
+			}
         }
 
         public override Dir422 Parent
         {
-            get;
+			get
+			{
+				return _parent;
+			}
         }
 
         public override Stream OpenReadOnly()
         {
             lock (thisLock)
             {
-                return MyStream;  
+				return MyStream;
             }
         }
 
